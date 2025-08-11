@@ -15,10 +15,6 @@ scikit-learn = "^1.6.1"
 matplotlib = "^3.10.1"
 seaborn = "^0.13.2"
 plotly = "^6.1.2"
-spacy = "^3.8.7"
-nltk = "^3.9.1"
-torch = "^2.7.1"
-torchvision = "^0.22.1"
 
 [tool.black]
 line-length = 120
