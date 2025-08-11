@@ -1,0 +1,40 @@
+# Folders that Git should ignore
+
+/personal
+
+# Python stuff
+*.ipynb_checkpoints/
+*.mypy_cache/
+
+# File extensions that Git should ignore
+
+# vim #
+#######
+*.swp
+
+# tex #
+#######
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.synctex.gz
+
+# images #
+##########
+*.png
+
+# data files #
+##############
+*.xls
+*.pkl
+*.npy
+*.Rdata
+*.Rds
+
+# Python #
+##########
+*.pyc
+
