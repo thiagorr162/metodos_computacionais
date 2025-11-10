@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "joblib>=1.5.2",
     "jupyterlab>=4.4.7",
     "matplotlib>=3.10.6",
     "notebook>=7.4.5",
