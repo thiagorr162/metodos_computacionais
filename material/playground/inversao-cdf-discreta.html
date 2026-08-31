@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A transformada inversa — amostrando variáveis discretas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #EEF0EA;
+    --paper-2: #E4E7DF;
+    --ink: #17233A;
+    --ink-soft: #4B5567;
+    --blueprint: #123456;
+    --blueprint-deep: #0D2740;
+    --grid-on-blueprint: rgba(200, 226, 240, 0.14);
+    --grid-on-blueprint-strong: rgba(200, 226, 240, 0.28);
+    --curve: #EAF6FB;
+    --curve-dim: rgba(234, 246, 251, 0.55);
+    --amber: #F4A93B;
+    --amber-deep: #C97F1B;
+    --coral: #FF6E5A;
+    --line: #C7CBBE;
+    --radius: 6px;
+    --serif-mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --sans: 'IBM Plex Sans', system-ui, sans-serif;
+    --display: 'Space Grotesk', system-ui, sans-serif;
+  }
+
+  *{ box-sizing: border-box; }
+
+  [hidden]{ display: none !important; }
+
+  html{ scroll-behavior: smooth; }
+
+  body{
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page{ max-width: 1080px; margin: 0 auto; padding: 0 24px 80px; }
+
+  a{ color: inherit; }
+
+  :focus-visible{ outline: 2.5px solid var(--amber); outline-offset: 3px; }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    background: var(--blueprint);
+    background-image:
+      linear-gradient(var(--grid-on-blueprint) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-on-blueprint) 1px, transparent 1px);
+    background-size: 28px 28px;
+    color: var(--curve);
+    margin: 0 -24px 56px;
+    padding: 54px 24px 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-inner{ max-width: 1032px; margin: 0 auto; position: relative; }
+  .kicker{
+    font-family: var(--serif-mono);
+    font-size: 0.8rem;
+    color: var(--amber);
+    letter-spacing: 0.02em;
+    margin: 0 0 14px;
+  }
+  .hero h1{
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(2rem, 4.4vw, 3.1rem);
+    line-height: 1.08;
+    margin: 0 0 18px;
+    max-width: 16ch;
+    letter-spacing: -0.01em;
+  }
+  .hero p{
+    font-size: 1.06rem;
+    color: rgba(234,246,251,0.82);
+    max-width: 56ch;
+    margin: 0;
+  }
+  .title-block{
+    font-family: var(--serif-mono);
+    font-size: 0.72rem;
+    color: rgba(234,246,251,0.75);
+    border: 1px solid var(--grid-on-blueprint-strong);
+    background: rgba(10, 30, 48, 0.4);
+    padding: 12px 14px;
+    max-width: 240px;
+    margin-top: 34px;
+  }
+  .title-block div{ display: flex; justify-content: space-between; gap: 16px; padding: 2px 0; }
+  .title-block div + div{ border-top: 1px dashed var(--grid-on-blueprint); }
+  .title-block span:first-child{ color: rgba(234,246,251,0.5); }
+
+  /* ---------- SECTIONS ---------- */
+  section{ margin: 0 0 64px; }
+  section > h2{
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 1.6rem;
+    margin: 0 0 8px;
+    letter-spacing: -0.005em;
+  }
+  section > .lede{
+    color: var(--ink-soft);
+    max-width: 68ch;
+    margin: 0 0 24px;
+    font-size: 1.01rem;
+  }
+  .formula{
+    font-family: var(--serif-mono);
+    background: var(--paper-2);
+    border-left: 3px solid var(--amber-deep);
+    padding: 12px 16px;
+    display: inline-block;
+    font-size: 0.95rem;
+    margin: 4px 0 22px;
+    color: var(--ink);
+  }
+
+  /* ---------- FIGURE PANEL ---------- */
+  .panel{
+    background: var(--blueprint);
+    background-image:
+      linear-gradient(var(--grid-on-blueprint) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-on-blueprint) 1px, transparent 1px);
+    background-size: 24px 24px;
+    border-radius: var(--radius);
+    padding: 22px 22px 18px;
+  }
+  .panel svg{ width: 100%; height: auto; display: block; }
+  .panel .step-line{ fill: none; stroke: var(--curve); stroke-width: 2.4; }
+  .panel .riser{ stroke: var(--grid-on-blueprint-strong); stroke-width: 1.2; stroke-dasharray: 2 3; }
+  .panel .dot-filled{ fill: var(--curve); }
+  .panel .dot-open{ fill: var(--blueprint); stroke: var(--curve); stroke-width: 2; }
+  .panel .axis{ stroke: var(--grid-on-blueprint-strong); stroke-width: 1; }
+  .panel .tick-label{ fill: rgba(234,246,251,0.62); font-family: var(--serif-mono); font-size: 11px; }
+  .panel .axis-label{ fill: rgba(234,246,251,0.8); font-family: var(--serif-mono); font-size: 12px; }
+  .panel .proj-h, .panel .proj-v{ stroke: var(--amber); stroke-width: 1.6; stroke-dasharray: 5 4; }
+  .panel .result-dot{ fill: var(--coral); }
+  .panel .result-label{ fill: var(--coral); font-family: var(--serif-mono); font-size: 12.5px; font-weight: 600; }
+  .panel .u-handle{ fill: var(--amber); stroke: var(--blueprint); stroke-width: 2; cursor: grab; }
+  .panel .u-handle:active{ cursor: grabbing; }
+  .panel .u-guide{ stroke: var(--grid-on-blueprint-strong); stroke-width: 1; }
+
+  .readout{
+    display: flex; flex-wrap: wrap; gap: 10px 28px;
+    font-family: var(--serif-mono);
+    font-size: 0.92rem;
+    color: rgba(234,246,251,0.9);
+    padding-top: 12px; margin-top: 8px;
+    border-top: 1px dashed var(--grid-on-blueprint-strong);
+  }
+  .readout b{ color: var(--amber); font-weight: 600; }
+  .readout .x-result b{ color: var(--coral); }
+
+  /* ---------- CONTROLS ---------- */
+  .controls-row{
+    display: flex; align-items: center; gap: 16px;
+    margin-top: 18px; flex-wrap: wrap;
+  }
+  .u-slider{ flex: 1 1 220px; min-width: 160px; accent-color: var(--amber); height: 20px; }
+  .btn{
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 0.9rem;
+    background: transparent;
+    border: 1.5px solid var(--amber);
+    color: var(--amber);
+    padding: 9px 16px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: background .15s ease, color .15s ease;
+    white-space: nowrap;
+  }
+  .btn:hover{ background: var(--amber); color: var(--blueprint-deep); }
+  .btn.secondary{ border-color: var(--line); color: var(--ink-soft); }
+  .btn.secondary:hover{ background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .dice-icon{ width: 16px; height: 16px; flex: none; }
+
+  /* ---------- TABS ---------- */
+  .tabs{ display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 20px; flex-wrap: wrap; }
+  .tab{
+    font-family: var(--sans); font-size: 0.95rem; font-weight: 500;
+    background: none; border: none; padding: 10px 4px; margin-right: 22px;
+    color: var(--ink-soft); cursor: pointer; position: relative; top: 1px;
+    border-bottom: 2.5px solid transparent;
+  }
+  .tab[aria-selected="true"]{ color: var(--ink); font-weight: 600; border-bottom-color: var(--amber-deep); }
+  .tab:hover{ color: var(--ink); }
+
+  .param-grid{ display: flex; flex-wrap: wrap; gap: 22px 32px; margin-bottom: 20px; }
+  .param{ display: flex; flex-direction: column; gap: 6px; min-width: 180px; flex: 1 1 200px; }
+  .param label{ font-size: 0.86rem; color: var(--ink-soft); display: flex; justify-content: space-between; }
+  .param label b{ font-family: var(--serif-mono); color: var(--ink); font-weight: 600; }
+  .param input[type="range"]{ accent-color: var(--amber-deep); }
+  .param-note{ font-size: 0.8rem; color: var(--ink-soft); margin: -8px 0 18px; }
+  .custom-row{ display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 6px; }
+  .custom-row input[type="text"]{
+    flex: 1 1 320px; font-family: var(--serif-mono); font-size: 0.9rem;
+    padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 3px; background: #fff; color: var(--ink);
+  }
+  .error-msg{ color: #B0402A; font-size: 0.82rem; min-height: 1.2em; margin-top: 6px; }
+
+  /* ---------- SIM ---------- */
+  .sim-controls{ display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+  .sim-count{ font-family: var(--serif-mono); font-size: 0.88rem; color: var(--ink-soft); margin-left: auto; }
+  .legend{ display: flex; gap: 22px; flex-wrap: wrap; font-size: 0.82rem; color: rgba(234,246,251,0.8); font-family: var(--serif-mono); margin-top: 10px; }
+  .legend span{ display: inline-flex; align-items: center; gap: 7px; }
+  .swatch{ width: 12px; height: 12px; display: inline-block; border-radius: 2px; }
+
+  /* ---------- RECAP ---------- */
+  .recap-list{ list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; max-width: 60ch; }
+  .recap-list li{
+    display: flex; gap: 14px; align-items: baseline;
+    padding: 14px 16px; background: var(--paper-2); border-radius: 4px;
+  }
+  .recap-list .num{
+    font-family: var(--serif-mono); font-weight: 600; color: var(--amber-deep);
+    font-size: 0.95rem; flex: none;
+  }
+
+  footer{ color: var(--ink-soft); font-size: 0.85rem; padding-top: 24px; border-top: 1px solid var(--line); }
+
+  @media (max-width: 600px){
+    .hero{ padding: 40px 18px 30px; }
+    .panel{ padding: 16px 12px 14px; }
+    .readout{ font-size: 0.82rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    html{ scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="hero">
+    <div class="hero-inner">
+      <p class="kicker">MÉTODO DA TRANSFORMADA INVERSA</p>
+      <h1>Como transformar um sorteio uniforme em qualquer variável discreta</h1>
+      <p>Uma régua e um esquadro para entender F⁻¹(u): sorteie u no eixo vertical, projete até a escada da CDF e desça até o valor de x correspondente.</p>
+      <div class="title-block">
+        <div><span>assunto</span><span>amostragem de discretas</span></div>
+        <div><span>eixo y</span><span>u ~ Uniforme(0,1)</span></div>
+        <div><span>eixo x</span><span>valores de X</span></div>
+        <div><span>folha</span><span>1/1</span></div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <section id="intro">
+      <h2>O que é a CDF inversa?</h2>
+      <p class="lede">
+        A função de distribuição acumulada F(x) = P(X ≤ x) de uma variável discreta é uma escada: sobe em degraus nos valores possíveis de x e fica constante entre eles. A inversa F⁻¹ faz o caminho contrário — parte de um número u entre 0 e 1 e devolve o menor x cujo degrau já alcançou essa altura.
+      </p>
+      <p class="formula">F⁻¹(u) = min{ x : F(x) ≥ u }</p>
+      <p class="lede" style="margin-top:-8px;">
+        No exemplo abaixo, X é o resultado do lançamento de um dado honesto (valores 1 a 6, cada um com probabilidade 1/6). Arraste o marcador âmbar no eixo vertical — ou sorteie um u aleatório — e observe a construção: linha horizontal até a escada, depois linha vertical até o eixo x.
+      </p>
+
+      <div class="panel">
+        <div id="plot-intro"></div>
+        <div class="readout" id="readout-intro"></div>
+      </div>
+      <div class="controls-row">
+        <input type="range" class="u-slider" id="slider-intro" min="0" max="1" step="0.001" value="0.5" aria-label="Valor de u">
+        <button class="btn" id="random-intro" type="button">
+          <svg class="dice-icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5" cy="5" r="1.1" fill="currentColor"/><circle cx="11" cy="5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="5" cy="11" r="1.1" fill="currentColor"/><circle cx="11" cy="11" r="1.1" fill="currentColor"/></svg>
+          sortear u aleatório
+        </button>
+      </div>
+    </section>
+
+    <section id="explorer">
+      <h2>Explore outras distribuições</h2>
+      <p class="lede">
+        A mesma ideia funciona para qualquer variável discreta — só muda o formato da escada. Escolha uma distribuição, ajuste os parâmetros e repita o experimento de projetar u sobre F⁻¹.
+      </p>
+
+      <div class="tabs" role="tablist" aria-label="Distribuições">
+        <button class="tab" role="tab" data-dist="bernoulli">Bernoulli</button>
+        <button class="tab" role="tab" data-dist="binomial" aria-selected="true">Binomial</button>
+        <button class="tab" role="tab" data-dist="poisson">Poisson</button>
+        <button class="tab" role="tab" data-dist="geometrica">Geométrica</button>
+        <button class="tab" role="tab" data-dist="custom">Personalizada</button>
+      </div>
+
+      <div class="param-grid" id="params-bernoulli" hidden>
+        <div class="param">
+          <label>p (probabilidade de sucesso) <b id="val-bern-p">0.30</b></label>
+          <input type="range" id="bern-p" min="0.01" max="0.99" step="0.01" value="0.3">
+        </div>
+      </div>
+
+      <div class="param-grid" id="params-binomial">
+        <div class="param">
+          <label>n (número de tentativas) <b id="val-bin-n">10</b></label>
+          <input type="range" id="bin-n" min="1" max="30" step="1" value="10">
+        </div>
+        <div class="param">
+          <label>p (probabilidade de sucesso) <b id="val-bin-p">0.50</b></label>
+          <input type="range" id="bin-p" min="0.01" max="0.99" step="0.01" value="0.5">
+        </div>
+      </div>
+
+      <div class="param-grid" id="params-poisson" hidden>
+        <div class="param">
+          <label>λ (taxa média) <b id="val-pois-l">4.0</b></label>
+          <input type="range" id="pois-l" min="0.1" max="20" step="0.1" value="4">
+        </div>
+      </div>
+      <p class="param-note" id="note-poisson" hidden>A cauda é truncada visualmente após 99% da massa de probabilidade.</p>
+
+      <div class="param-grid" id="params-geometrica" hidden>
+        <div class="param">
+          <label>p (probabilidade de sucesso a cada tentativa) <b id="val-geo-p">0.30</b></label>
+          <input type="range" id="geo-p" min="0.1" max="0.95" step="0.01" value="0.3">
+        </div>
+      </div>
+      <p class="param-note" id="note-geo" hidden>X = número de tentativas até o primeiro sucesso. Cauda truncada após 99% da massa.</p>
+
+      <div class="param-grid" id="params-custom" hidden>
+        <div class="custom-row">
+          <input type="text" id="custom-input" value="0.1, 0.15, 0.2, 0.25, 0.2, 0.1" aria-label="Probabilidades separadas por vírgula">
+          <button class="btn secondary" id="custom-apply" type="button">aplicar</button>
+        </div>
+        <p class="param-note" style="margin:0;">Probabilidades para x = 0, 1, 2, … — não precisam somar exatamente 1, elas são normalizadas automaticamente.</p>
+        <p class="error-msg" id="custom-error"></p>
+      </div>
+
+      <div class="panel">
+        <div id="plot-explorer"></div>
+        <div class="readout" id="readout-explorer"></div>
+      </div>
+      <div class="controls-row">
+        <input type="range" class="u-slider" id="slider-explorer" min="0" max="1" step="0.001" value="0.5" aria-label="Valor de u">
+        <button class="btn" id="random-explorer" type="button">
+          <svg class="dice-icon" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="1.5" width="13" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="5" cy="5" r="1.1" fill="currentColor"/><circle cx="11" cy="5" r="1.1" fill="currentColor"/><circle cx="8" cy="8" r="1.1" fill="currentColor"/><circle cx="5" cy="11" r="1.1" fill="currentColor"/><circle cx="11" cy="11" r="1.1" fill="currentColor"/></svg>
+          sortear u aleatório
+        </button>
+      </div>
+    </section>
+
+    <section id="simulate">
+      <h2>O método realmente funciona? Vamos simular</h2>
+      <p class="lede">
+        Cada amostra sorteia um u ~ Uniforme(0,1) e devolve X = F⁻¹(u), usando a distribuição escolhida acima. Se o método estiver correto, as barras empíricas (âmbar) devem se aproximar dos traços da distribuição teórica (coral) à medida que N cresce.
+      </p>
+
+      <div class="sim-controls">
+        <button class="btn" id="sim-one" type="button">gerar 1 amostra</button>
+        <button class="btn" id="sim-many" type="button">gerar 500 amostras</button>
+        <button class="btn secondary" id="sim-reset" type="button">reiniciar</button>
+        <span class="sim-count" id="sim-count">N = 0 amostras</span>
+      </div>
+
+      <div class="panel">
+        <div id="plot-hist"></div>
+        <div class="legend">
+          <span><span class="swatch" style="background:var(--amber);"></span> frequência empírica</span>
+          <span><span class="swatch" style="background:var(--coral);"></span> probabilidade teórica</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="recap">
+      <h2>O algoritmo, em três passos</h2>
+      <ol class="recap-list">
+        <li><span class="num">1</span><span>Gere u a partir de uma Uniforme(0, 1).</span></li>
+        <li><span class="num">2</span><span>Encontre o menor x tal que F(x) ≥ u — isto é, calcule F⁻¹(u).</span></li>
+        <li><span class="num">3</span><span>Retorne X = F⁻¹(u) como a amostra sorteada.</span></li>
+      </ol>
+    </section>
+
+  </main>
+
+  <footer>
+    Método da transformada inversa para variáveis aleatórias discretas · material para uso em sala de aula
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ============ number formatting (pt-BR, comma decimal) ============ */
+  function fmt(n, digits){
+    digits = digits === undefined ? 3 : digits;
+    return n.toFixed(digits).replace('.', ',');
+  }
+
+  /* ============ distributions ============ */
+  function withCDF(dist){
+    var cum = 0;
+    var Fs = dist.ps.map(function(p){ cum += p; return cum; });
+    Fs[Fs.length - 1] = 1;
+    return { xs: dist.xs, ps: dist.ps, Fs: Fs };
+  }
+
+  function bernoulliDist(p){ return withCDF({ xs: [0, 1], ps: [1 - p, p] }); }
+
+  function binomialDist(n, p){
+    var xs = [], ps = [], c = 1;
+    for (var k = 0; k <= n; k++){
+      if (k > 0) c = c * (n - k + 1) / k;
+      ps.push(c * Math.pow(p, k) * Math.pow(1 - p, n - k));
+      xs.push(k);
+    }
+    var s = ps.reduce(function(a,b){ return a+b; }, 0);
+    ps = ps.map(function(v){ return v / s; });
+    return withCDF({ xs: xs, ps: ps });
+  }
+
+  function poissonDist(lambda){
+    var xs = [], ps = [];
+    var pk = Math.exp(-lambda), cum = 0, k = 0;
+    while (true){
+      xs.push(k); ps.push(pk); cum += pk;
+      if (cum >= 0.99 || k >= 79) break;
+      k++; pk = pk * lambda / k;
+    }
+    var s = ps.reduce(function(a,b){ return a+b; }, 0);
+    if (s < 1) ps[ps.length - 1] += (1 - s);
+    return withCDF({ xs: xs, ps: ps });
+  }
+
+  function geometricDist(p){
+    var xs = [], ps = [];
+    var k = 1, cum = 0, pk = p;
+    while (true){
+      xs.push(k); ps.push(pk); cum += pk;
+      if (cum >= 0.99 || k >= 80) break;
+      k++; pk = pk * (1 - p);
+    }
+    var s = ps.reduce(function(a,b){ return a+b; }, 0);
+    if (s < 1) ps[ps.length - 1] += (1 - s);
+    return withCDF({ xs: xs, ps: ps });
+  }
+
+  function uniformDiceDist(){
+    return withCDF({ xs: [1,2,3,4,5,6], ps: [1/6,1/6,1/6,1/6,1/6,1/6] });
+  }
+
+  function customDist(values){
+    var s = values.reduce(function(a,b){ return a+b; }, 0);
+    var ps = values.map(function(v){ return v / s; });
+    var xs = values.map(function(_, i){ return i; });
+    return withCDF({ xs: xs, ps: ps });
+  }
+
+  function inverseCDF(dist, u){
+    for (var i = 0; i < dist.xs.length; i++){
+      if (dist.Fs[i] >= u) return { x: dist.xs[i], idx: i };
+    }
+    return { x: dist.xs[dist.xs.length - 1], idx: dist.xs.length - 1 };
+  }
+
+  /* ============ SVG helpers ============ */
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs){
+    var e = document.createElementNS(SVG_NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  /* ============ Inverse-CDF plot component ============ */
+  function createPlot(container){
+    var W = 640, H = 360;
+    var M = { left: 46, right: 20, top: 18, bottom: 40 };
+    var plotW = W - M.left - M.right;
+    var plotH = H - M.top - M.bottom;
+
+    var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Gráfico da função de distribuição acumulada com projeção interativa' });
+    container.innerHTML = '';
+    container.appendChild(svg);
+
+    var staticLayer = el('g', {});
+    var dynamicLayer = el('g', {});
+    svg.appendChild(staticLayer);
+    svg.appendChild(dynamicLayer);
+
+    var state = { dist: null, u: 0.5, xMinDisp: 0, xMaxDisp: 1 };
+    var listeners = [];
+
+    function xScale(v){ return M.left + (v - state.xMinDisp) / (state.xMaxDisp - state.xMinDisp) * plotW; }
+    function yScale(u){ return M.top + (1 - u) * plotH; }
+
+    function setDistribution(dist){
+      state.dist = dist;
+      state.xMinDisp = dist.xs[0] - 1;
+      state.xMaxDisp = dist.xs[dist.xs.length - 1] + 1;
+      renderStatic();
+      renderDynamic();
+    }
+
+    function renderStatic(){
+      staticLayer.innerHTML = '';
+      var dist = state.dist;
+
+      // horizontal gridlines + y ticks
+      var uLabels = { 0: '0', 0.25: '0,25', 0.5: '0,5', 0.75: '0,75', 1: '1' };
+      [0, 0.25, 0.5, 0.75, 1].forEach(function(u){
+        var y = yScale(u);
+        staticLayer.appendChild(el('line', { class: 'axis', x1: M.left, x2: W - M.right, y1: y, y2: y, opacity: u === 0 ? 1 : 0.5 }));
+        var t = el('text', { class: 'tick-label', x: M.left - 8, y: y + 4, 'text-anchor': 'end' });
+        t.textContent = uLabels[u];
+        staticLayer.appendChild(t);
+      });
+
+      // y axis line
+      staticLayer.appendChild(el('line', { class: 'axis', x1: M.left, x2: M.left, y1: M.top, y2: H - M.bottom }));
+      // x axis line
+      staticLayer.appendChild(el('line', { class: 'axis', x1: M.left, x2: W - M.right, y1: H - M.bottom, y2: H - M.bottom }));
+
+      var ulab = el('text', { class: 'axis-label', x: M.left, y: M.top - 4 });
+      ulab.textContent = 'u';
+      staticLayer.appendChild(ulab);
+      var xlab = el('text', { class: 'axis-label', x: W - M.right, y: H - M.bottom + 26, 'text-anchor': 'end' });
+      xlab.textContent = 'x';
+      staticLayer.appendChild(xlab);
+
+      var n = dist.xs.length;
+      var labelStep = Math.max(1, Math.ceil(n / 14));
+
+      // leading tread at level 0
+      var xStart = xScale(state.xMinDisp), xFirst = xScale(dist.xs[0]);
+      staticLayer.appendChild(el('line', { class: 'step-line', x1: xStart, x2: xFirst, y1: yScale(0), y2: yScale(0) }));
+      staticLayer.appendChild(el('line', { class: 'riser', x1: xFirst, x2: xFirst, y1: yScale(0), y2: yScale(dist.Fs[0]) }));
+
+      for (var i = 0; i < n; i++){
+        var x0 = dist.xs[i];
+        var x1 = (i + 1 < n) ? dist.xs[i+1] : state.xMaxDisp;
+        var y = yScale(dist.Fs[i]);
+        var px0 = xScale(x0), px1 = xScale(x1);
+
+        staticLayer.appendChild(el('line', { class: 'step-line', x1: px0, x2: px1, y1: y, y2: y }));
+        staticLayer.appendChild(el('circle', { class: 'dot-filled', cx: px0, cy: y, r: 3.6 }));
+        staticLayer.appendChild(el('circle', { class: 'dot-open', cx: px1, cy: y, r: 3.6 }));
+
+        if (i + 1 < n){
+          staticLayer.appendChild(el('line', { class: 'riser', x1: px1, x2: px1, y1: y, y2: yScale(dist.Fs[i+1]) }));
+        }
+
+        // x tick
+        var tick = el('line', { class: 'axis', x1: px0, x2: px0, y1: H - M.bottom, y2: H - M.bottom + 4 });
+        staticLayer.appendChild(tick);
+        if (i % labelStep === 0 || i === n - 1){
+          var tl = el('text', { class: 'tick-label', x: px0, y: H - M.bottom + 16, 'text-anchor': 'middle' });
+          tl.textContent = x0;
+          staticLayer.appendChild(tl);
+        }
+      }
+    }
+
+    function renderDynamic(){
+      dynamicLayer.innerHTML = '';
+      var dist = state.dist;
+      var res = inverseCDF(dist, state.u);
+      var xStarPx = xScale(res.x);
+      var uPx = yScale(state.u);
+
+      dynamicLayer.appendChild(el('line', { class: 'proj-h', x1: M.left, x2: xStarPx, y1: uPx, y2: uPx }));
+      dynamicLayer.appendChild(el('line', { class: 'proj-v', x1: xStarPx, x2: xStarPx, y1: uPx, y2: H - M.bottom }));
+      dynamicLayer.appendChild(el('circle', { class: 'result-dot', cx: xStarPx, cy: H - M.bottom, r: 5 }));
+
+      var lbl = el('text', { class: 'result-label', x: xStarPx, y: H - M.bottom + 16, 'text-anchor': 'middle' });
+      lbl.textContent = 'x=' + res.x;
+      dynamicLayer.appendChild(lbl);
+
+      var handle = el('circle', { class: 'u-handle', cx: M.left, cy: uPx, r: 6.5, tabindex: '0' });
+      dynamicLayer.appendChild(handle);
+
+      attachDrag(handle);
+
+      listeners.forEach(function(fn){ fn(state.u, res.x); });
+    }
+
+    function attachDrag(handle){
+      var dragging = false;
+      function move(clientY){
+        var rect = svg.getBoundingClientRect();
+        var scale = H / rect.height;
+        var svgY = (clientY - rect.top) * scale;
+        var u = 1 - (svgY - M.top) / plotH;
+        u = Math.max(0, Math.min(1, u));
+        setU(u);
+      }
+      handle.addEventListener('pointerdown', function(e){
+        dragging = true;
+        handle.setPointerCapture(e.pointerId);
+      });
+      handle.addEventListener('pointermove', function(e){
+        if (dragging) move(e.clientY);
+      });
+      handle.addEventListener('pointerup', function(){ dragging = false; });
+      handle.addEventListener('keydown', function(e){
+        if (e.key === 'ArrowUp'){ setU(Math.min(1, state.u + 0.01)); e.preventDefault(); }
+        if (e.key === 'ArrowDown'){ setU(Math.max(0, state.u - 0.01)); e.preventDefault(); }
+      });
+    }
+
+    function setU(u){
+      state.u = u;
+      renderDynamic();
+    }
+
+    function animateToRandomU(duration){
+      duration = duration || 650;
+      var target = Math.random();
+      if (REDUCED_MOTION){ setU(target); return; }
+      var start = state.u, t0 = performance.now();
+      function frame(now){
+        var t = Math.min(1, (now - t0) / duration);
+        var eased = 1 - Math.pow(1 - t, 3);
+        setU(start + (target - start) * eased);
+        if (t < 1) requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
+
+    return {
+      setDistribution: setDistribution,
+      setU: setU,
+      getU: function(){ return state.u; },
+      animateToRandomU: animateToRandomU,
+      onUChange: function(fn){ listeners.push(fn); }
+    };
+  }
+
+  /* ============ Histogram component ============ */
+  function createHistogram(container){
+    var W = 640, H = 300;
+    var M = { left: 46, right: 20, top: 16, bottom: 40 };
+    var plotW = W - M.left - M.right;
+    var plotH = H - M.top - M.bottom;
+    var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Histograma de amostras comparado à distribuição teórica' });
+    container.innerHTML = '';
+    container.appendChild(svg);
+
+    function render(dist, counts, n){
+      svg.innerHTML = '';
+      var xs = dist.xs, ps = dist.ps;
+      var maxP = Math.max.apply(null, ps);
+      var maxEmp = 0;
+      xs.forEach(function(x){ var f = n > 0 ? (counts[x] || 0) / n : 0; if (f > maxEmp) maxEmp = f; });
+      var maxY = Math.max(maxP, maxEmp) * 1.2 || 0.1;
+
+      function yScale(v){ return M.top + (1 - v / maxY) * plotH; }
+
+      // gridlines
+      [0, 0.25, 0.5, 0.75, 1].forEach(function(f){
+        var y = M.top + (1 - f) * plotH;
+        svg.appendChild(el('line', { class: 'axis', x1: M.left, x2: W - M.right, y1: y, y2: y, opacity: f === 0 ? 1 : 0.35 }));
+      });
+      svg.appendChild(el('line', { class: 'axis', x1: M.left, x2: M.left, y1: M.top, y2: H - M.bottom }));
+
+      var n_ = xs.length;
+      var labelStep = Math.max(1, Math.ceil(n_ / 14));
+      var slot = plotW / n_;
+      var barW = Math.max(2, Math.min(28, slot * 0.55));
+
+      xs.forEach(function(x, i){
+        var cx = M.left + slot * (i + 0.5);
+        var emp = n > 0 ? (counts[x] || 0) / n : 0;
+        var barY = yScale(emp);
+        svg.appendChild(el('rect', {
+          x: cx - barW / 2, y: barY, width: barW, height: (H - M.bottom) - barY,
+          fill: '#F4A93B', opacity: 0.9, rx: 1.5
+        }));
+        var theoY = yScale(ps[i]);
+        svg.appendChild(el('line', {
+          x1: cx - barW / 2 - 3, x2: cx + barW / 2 + 3, y1: theoY, y2: theoY,
+          stroke: '#FF6E5A', 'stroke-width': 2.4
+        }));
+
+        var tick = el('line', { class: 'axis', x1: cx, x2: cx, y1: H - M.bottom, y2: H - M.bottom + 4 });
+        svg.appendChild(tick);
+        if (i % labelStep === 0 || i === n_ - 1){
+          var tl = el('text', { class: 'tick-label', x: cx, y: H - M.bottom + 16, 'text-anchor': 'middle' });
+          tl.textContent = x;
+          svg.appendChild(tl);
+        }
+      });
+    }
+
+    return { render: render };
+  }
+
+  /* ============ wire up: intro plot (dice) ============ */
+  var introPlot = createPlot(document.getElementById('plot-intro'));
+  var readoutIntro = document.getElementById('readout-intro');
+  var sliderIntro = document.getElementById('slider-intro');
+
+  introPlot.onUChange(function(u, x){
+    readoutIntro.innerHTML =
+      '<span>u = <b>' + fmt(u) + '</b></span>' +
+      '<span class="x-result">F⁻¹(u) = min{ x : F(x) ≥ ' + fmt(u) + ' } = <b>' + x + '</b></span>';
+    sliderIntro.value = u;
+  });
+
+  sliderIntro.addEventListener('input', function(){ introPlot.setU(parseFloat(sliderIntro.value)); });
+  document.getElementById('random-intro').addEventListener('click', function(){
+    introPlot.animateToRandomU();
+  });
+
+  var introDist = uniformDiceDist();
+  introPlot.setDistribution(introDist);
+  introPlot.setU(0.5);
+
+  /* ============ wire up: explorer plot ============ */
+  var explorerPlot = createPlot(document.getElementById('plot-explorer'));
+  var readoutExplorer = document.getElementById('readout-explorer');
+  var sliderExplorer = document.getElementById('slider-explorer');
+
+  explorerPlot.onUChange(function(u, x){
+    readoutExplorer.innerHTML =
+      '<span>u = <b>' + fmt(u) + '</b></span>' +
+      '<span class="x-result">F⁻¹(u) = min{ x : F(x) ≥ ' + fmt(u) + ' } = <b>' + x + '</b></span>';
+    sliderExplorer.value = u;
+  });
+
+  sliderExplorer.addEventListener('input', function(){ explorerPlot.setU(parseFloat(sliderExplorer.value)); });
+  document.getElementById('random-explorer').addEventListener('click', function(){
+    explorerPlot.animateToRandomU();
+  });
+
+  /* ============ histogram ============ */
+  var hist = createHistogram(document.getElementById('plot-hist'));
+  var simCounts = {};
+  var simN = 0;
+
+  var currentDist = null;
+  var currentDistType = 'binomial';
+
+  function updateHistogramView(){
+    hist.render(currentDist, simCounts, simN);
+    document.getElementById('sim-count').textContent = 'N = ' + simN + ' amostra' + (simN === 1 ? '' : 's');
+  }
+
+  function setActiveDistribution(dist, type){
+    currentDist = dist;
+    currentDistType = type;
+    explorerPlot.setDistribution(dist);
+    simCounts = {};
+    simN = 0;
+    updateHistogramView();
+  }
+
+  /* ============ tabs & params ============ */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  var panels = {
+    bernoulli: document.getElementById('params-bernoulli'),
+    binomial: document.getElementById('params-binomial'),
+    poisson: document.getElementById('params-poisson'),
+    geometrica: document.getElementById('params-geometrica'),
+    custom: document.getElementById('params-custom')
+  };
+  var notes = {
+    poisson: document.getElementById('note-poisson'),
+    geometrica: document.getElementById('note-geo')
+  };
+
+  function selectTab(name){
+    tabs.forEach(function(t){ t.setAttribute('aria-selected', t.dataset.dist === name ? 'true' : 'false'); });
+    Object.keys(panels).forEach(function(k){ panels[k].hidden = (k !== name); });
+    Object.keys(notes).forEach(function(k){ notes[k].hidden = (k !== name); });
+    applyCurrentTab(name);
+  }
+
+  function applyCurrentTab(name){
+    if (name === 'bernoulli'){
+      setActiveDistribution(bernoulliDist(parseFloat(document.getElementById('bern-p').value)), name);
+    } else if (name === 'binomial'){
+      setActiveDistribution(binomialDist(parseInt(document.getElementById('bin-n').value, 10), parseFloat(document.getElementById('bin-p').value)), name);
+    } else if (name === 'poisson'){
+      setActiveDistribution(poissonDist(parseFloat(document.getElementById('pois-l').value)), name);
+    } else if (name === 'geometrica'){
+      setActiveDistribution(geometricDist(parseFloat(document.getElementById('geo-p').value)), name);
+    } else if (name === 'custom'){
+      applyCustom();
+    }
+  }
+
+  tabs.forEach(function(t){
+    t.addEventListener('click', function(){ selectTab(t.dataset.dist); });
+  });
+
+  /* bernoulli */
+  var bernP = document.getElementById('bern-p'), bernPVal = document.getElementById('val-bern-p');
+  bernP.addEventListener('input', function(){
+    bernPVal.textContent = fmt(parseFloat(bernP.value), 2);
+    if (currentDistType === 'bernoulli') applyCurrentTab('bernoulli');
+  });
+
+  /* binomial */
+  var binN = document.getElementById('bin-n'), binNVal = document.getElementById('val-bin-n');
+  var binP = document.getElementById('bin-p'), binPVal = document.getElementById('val-bin-p');
+  binN.addEventListener('input', function(){
+    binNVal.textContent = binN.value;
+    if (currentDistType === 'binomial') applyCurrentTab('binomial');
+  });
+  binP.addEventListener('input', function(){
+    binPVal.textContent = fmt(parseFloat(binP.value), 2);
+    if (currentDistType === 'binomial') applyCurrentTab('binomial');
+  });
+
+  /* poisson */
+  var poisL = document.getElementById('pois-l'), poisLVal = document.getElementById('val-pois-l');
+  poisL.addEventListener('input', function(){
+    poisLVal.textContent = fmt(parseFloat(poisL.value), 1);
+    if (currentDistType === 'poisson') applyCurrentTab('poisson');
+  });
+
+  /* geometrica */
+  var geoP = document.getElementById('geo-p'), geoPVal = document.getElementById('val-geo-p');
+  geoP.addEventListener('input', function(){
+    geoPVal.textContent = fmt(parseFloat(geoP.value), 2);
+    if (currentDistType === 'geometrica') applyCurrentTab('geometrica');
+  });
+
+  /* custom */
+  var customInput = document.getElementById('custom-input');
+  var customError = document.getElementById('custom-error');
+  function applyCustom(){
+    var raw = customInput.value.split(',').map(function(s){ return parseFloat(s.trim()); });
+    var valid = raw.filter(function(v){ return isFinite(v) && v >= 0; });
+    if (valid.length < 2 || valid.length !== raw.length || valid.every(function(v){ return v === 0; })){
+      customError.textContent = 'Informe ao menos dois números não negativos, separados por vírgula.';
+      return;
+    }
+    customError.textContent = '';
+    setActiveDistribution(customDist(valid), 'custom');
+  }
+  document.getElementById('custom-apply').addEventListener('click', applyCustom);
+  customInput.addEventListener('keydown', function(e){ if (e.key === 'Enter') applyCustom(); });
+
+  /* initial state: binomial tab active */
+  selectTab('binomial');
+
+  /* ============ simulation buttons ============ */
+  function drawOne(){
+    var u = Math.random();
+    var res = inverseCDF(currentDist, u);
+    simCounts[res.x] = (simCounts[res.x] || 0) + 1;
+    simN++;
+  }
+
+  document.getElementById('sim-one').addEventListener('click', function(){
+    explorerPlot.setU(Math.random());
+    drawOne();
+    updateHistogramView();
+  });
+  document.getElementById('sim-many').addEventListener('click', function(){
+    for (var i = 0; i < 500; i++) drawOne();
+    updateHistogramView();
+  });
+  document.getElementById('sim-reset').addEventListener('click', function(){
+    simCounts = {}; simN = 0; updateHistogramView();
+  });
+
+})();
+</script>
+</body>
+</html>
