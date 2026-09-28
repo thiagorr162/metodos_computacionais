@@ -123,6 +123,13 @@ svg{display:block;width:100%;height:auto;background:#07101e;border-radius:12px;b
         <span class="badge">f(x) ≤ M g(x)</span>
         <span class="badge">X aceito ~ f</span>
         <span class="badge">taxa teórica = 1/M</span>
+        <div style="margin-top:14px;color:var(--muted);font-size:13px">
+          <b style="color:var(--txt)">Caso especial: meia-normal com proposta exponencial.</b>
+          Para f(x)=√(2/π)e<sup>−x²/2</sup>, x≥0, e
+          g<sub>λ</sub>(x)=λe<sup>−λx</sup>, temos
+          M(λ)=√(2/π)e<sup>λ²/2</sup>/λ. Esse valor é minimizado em λ=1,
+          por isso Exp(1) é a proposta exponencial mais eficiente para esse exemplo.
+        </div>
       </section>
     </main>
   </div>
@@ -146,6 +153,17 @@ svg{display:block;width:100%;height:auto;background:#07101e;border-radius:12px;b
   function cPdf(x,loc=0,s=1){const z=(x-loc)/s; return 1/(Math.PI*s*(1+z*z))}
   function cRnd(loc=0,s=1){return loc+s*Math.tan(Math.PI*(Math.random()-.5))}
   function lPdf(x){return .5*Math.exp(-Math.abs(x))}
+  function halfNormalPdf(x){return x>=0 ? Math.sqrt(2/Math.PI)*Math.exp(-.5*x*x) : 0}
+  function expPdf(x,lambda=1){return x>=0 ? lambda*Math.exp(-lambda*x) : 0}
+  function expRnd(lambda=1){
+    let u=0; while(u===0)u=Math.random();
+    return -Math.log(u)/lambda;
+  }
+  function halfNormalExpM(lambda=1){
+    // sup_x f(x)/g_lambda(x), atingido em x=lambda:
+    // M(lambda)=sqrt(2/pi)/lambda * exp(lambda^2/2)
+    return Math.sqrt(2/Math.PI)/lambda*Math.exp(.5*lambda*lambda);
+  }
   function b25(x){return x>=0&&x<=1 ? 30*x*Math.pow(1-x,4) : 0}
   function b22(x){return x>=0&&x<=1 ? 6*x*(1-x) : 0}
   function b22Rnd(){
@@ -161,6 +179,32 @@ svg{display:block;width:100%;height:auto;background:#07101e;border-radius:12px;b
       proposals:{
         cauchy:{name:"Cauchy(0,1)",pdf:x=>cPdf(x),rnd:()=>cRnd(),M:Math.sqrt(2*Math.PI/Math.E)},
         normal2:{name:"Normal N(0,2²)",pdf:x=>nPdf(x,0,2),rnd:()=>nRnd(0,2),M:2}
+      }
+    },
+    halfnormal:{
+      name:"Meia-normal |N(0,1)|, x ≥ 0", domain:[0,5], pdf:halfNormalPdf,
+      proposals:{
+        exp1:{
+          name:"Exponencial Exp(λ=1) — ótima",
+          pdf:x=>expPdf(x,1),
+          rnd:()=>expRnd(1),
+          M:halfNormalExpM(1),
+          note:"Entre todas as propostas Exp(λ), λ=1 minimiza M."
+        },
+        exp05:{
+          name:"Exponencial Exp(λ=0,5) — cauda mais larga",
+          pdf:x=>expPdf(x,.5),
+          rnd:()=>expRnd(.5),
+          M:halfNormalExpM(.5),
+          note:"Envelope válido, porém menos eficiente que λ=1."
+        },
+        exp15:{
+          name:"Exponencial Exp(λ=1,5) — mais concentrada",
+          pdf:x=>expPdf(x,1.5),
+          rnd:()=>expRnd(1.5),
+          M:halfNormalExpM(1.5),
+          note:"Também válido; M aumenta porque λ=1 é o ótimo."
+        }
       }
     },
     beta:{
@@ -333,7 +377,11 @@ U ≤ f(X)/(M g(X))
 ou
 Y = U·M·g(X) ≤ f(X)
 
-Taxa teórica ≈ 1/M = ${(100/M()).toFixed(2)}%`;
+Taxa teórica ≈ 1/M = ${(100/M()).toFixed(2)}%` +
+      (prop().note ? `
+
+Observação:
+${prop().note}` : "");
   }
 
   function selfTest(){
