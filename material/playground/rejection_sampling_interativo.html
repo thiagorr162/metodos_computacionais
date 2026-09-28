@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rejection Sampling — laboratório visual</title>
+<style>
+:root{
+  --bg:#08111f; --panel:#101a2d; --panel2:#0b1425; --line:#27344e;
+  --txt:#e8edf6; --muted:#9aabc2; --target:#67d7ff; --env:#c792ff;
+  --ok:#70e6a1; --bad:#ff8fa3; --candidate:#ffd166;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+.app{max-width:1450px;margin:auto;padding:22px}
+h1{margin:0 0 6px;font-size:clamp(28px,3vw,42px)}
+.lead{color:var(--muted);max-width:1000px;margin:0 0 18px}
+.layout{display:grid;grid-template-columns:330px 1fr;gap:16px}
+.card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:16px}
+.side{padding:16px;height:max-content;position:sticky;top:12px}
+.control{margin-bottom:14px}
+label{display:block;color:var(--muted);font-size:12px;font-weight:700;margin-bottom:6px}
+select,input[type=range],button{width:100%}
+select{background:#091326;color:var(--txt);border:1px solid #33445f;border-radius:10px;padding:10px}
+input[type=range]{accent-color:#54c7ec}
+.buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button{background:#162642;color:var(--txt);border:1px solid #36506f;border-radius:10px;padding:11px 10px;font-weight:800;cursor:pointer}
+button:hover{filter:brightness(1.12)}
+button.primary{background:#0f6f89}
+button.warn{background:#502333}
+.status{margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px;color:var(--muted)}
+.status.ok{color:#b9f7d0;border-color:#236c47}.status.bad{color:#ffd0d8;border-color:#873248}
+.formula{font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;background:#07101e;border:1px solid var(--line);padding:10px;border-radius:10px;margin-top:12px;white-space:pre-wrap}
+.main{display:grid;gap:16px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.stat{padding:12px 14px}.stat small{display:block;color:var(--muted)}.stat b{font-size:23px}
+.chart{padding:12px}
+svg{display:block;width:100%;height:auto;background:#07101e;border-radius:12px;border:1px solid var(--line)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:8px}
+.sw{display:inline-block;width:18px;height:3px;margin-right:5px;vertical-align:3px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.step{padding:13px;border:1px solid var(--line);border-radius:12px;background:#0a1426;min-height:115px}
+.step.active{outline:2px solid #318fb0}.step.done{border-color:#2b6b50}
+.num{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#1d2b43;font-size:12px;font-weight:800}
+.step h3{font-size:14px;margin:7px 0 4px}.step p{font-size:12px;color:var(--muted);margin:0}
+.explain{padding:16px}.explain h2{font-size:18px;margin:0 0 8px}
+.badge{display:inline-block;margin:3px 4px 0 0;padding:4px 8px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:12px}
+.selftest{font-size:12px;margin-top:10px;color:var(--muted)}
+@media(max-width:1000px){.layout{grid-template-columns:1fr}.side{position:static}.stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:650px){.app{padding:12px}.steps,.stats,.buttons{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Rejection Sampling — laboratório visual</h1>
+  <p class="lead">Escolha uma densidade-alvo <b>f</b> e uma proposta <b>g</b>. O gráfico mostra o envelope <b>M g(x)</b>; cada proposta gera um ponto aleatório sob esse envelope. Se o ponto ficar abaixo de <b>f(x)</b>, o valor de x é aceito.</p>
+
+  <div class="layout">
+    <aside class="card side">
+      <div class="control">
+        <label>Distribuição-alvo f(x)</label>
+        <select id="target"></select>
+      </div>
+      <div class="control">
+        <label>Proposta g(x)</label>
+        <select id="proposal"></select>
+      </div>
+      <div class="control">
+        <label>Multiplicador extra do envelope: <span id="slackText">1.00×</span></label>
+        <input id="slack" type="range" min="1" max="3" value="1" step=".05">
+      </div>
+      <div class="control">
+        <label>Velocidade automática</label>
+        <input id="speed" type="range" min="1" max="10" value="5">
+      </div>
+      <div class="buttons">
+        <button class="primary" id="next">Próximo passo</button>
+        <button id="auto">▶ Automático</button>
+        <button id="batch">Gerar 100</button>
+        <button class="warn" id="reset">Resetar</button>
+      </div>
+      <div id="status" class="status">Pronto. Clique em “Próximo passo”.</div>
+      <div id="formula" class="formula"></div>
+      <div id="selftest" class="selftest"></div>
+    </aside>
+
+    <main class="main">
+      <section class="stats">
+        <div class="card stat"><small>Propostas</small><b id="nProp">0</b></div>
+        <div class="card stat"><small>Aceitas</small><b id="nAcc">0</b></div>
+        <div class="card stat"><small>Taxa observada</small><b id="obs">—</b></div>
+        <div class="card stat"><small>Taxa teórica</small><b id="theory">—</b></div>
+        <div class="card stat"><small>M usado</small><b id="mUsed">—</b></div>
+      </section>
+
+      <section class="card chart">
+        <svg id="plot" viewBox="0 0 1000 520" aria-label="Gráfico de rejection sampling"></svg>
+        <div class="legend">
+          <span><i class="sw" style="background:var(--target)"></i>f(x)</span>
+          <span><i class="sw" style="background:var(--env)"></i>M g(x)</span>
+          <span><i class="dot" style="background:var(--ok)"></i>aceito</span>
+          <span><i class="dot" style="background:var(--bad)"></i>rejeitado</span>
+          <span><i class="dot" style="background:var(--candidate)"></i>candidato atual</span>
+        </div>
+      </section>
+
+      <section class="steps">
+        <div class="step" id="step1"><span class="num">1</span><h3>Sortear X ~ g</h3><p id="txt1">Ainda não sorteado.</p></div>
+        <div class="step" id="step2"><span class="num">2</span><h3>Sortear U ~ Uniforme(0,1)</h3><p id="txt2">Ainda não sorteado.</p></div>
+        <div class="step" id="step3"><span class="num">3</span><h3>Construir a altura</h3><p id="txt3">Y = U · M g(X).</p></div>
+        <div class="step" id="step4"><span class="num">4</span><h3>Comparar Y com f(X)</h3><p id="txt4">Aceitamos se Y ≤ f(X).</p></div>
+      </section>
+
+      <section class="card chart">
+        <svg id="hist" viewBox="0 0 1000 330" aria-label="Histograma das amostras aceitas"></svg>
+        <div class="legend"><span><i class="sw" style="background:#94a3b8"></i>histograma aceito</span><span><i class="sw" style="background:var(--target)"></i>f(x)</span></div>
+      </section>
+
+      <section class="card explain">
+        <h2>Equivalência das duas visões</h2>
+        <p>O teste <b>Y ≤ f(X)</b>, com <b>Y = U M g(X)</b>, é exatamente o mesmo que <b>U ≤ f(X)/(M g(X))</b>. Geometricamente, estamos sorteando um ponto sob o envelope e mantendo somente os pontos que também ficam sob a densidade-alvo.</p>
+        <span class="badge">f(x) ≤ M g(x)</span>
+        <span class="badge">X aceito ~ f</span>
+        <span class="badge">taxa teórica = 1/M</span>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function(){
+  const $ = s => document.querySelector(s);
+  const C = {
+    target:"#67d7ff", env:"#c792ff", ok:"#70e6a1",
+    bad:"#ff8fa3", candidate:"#ffd166", grid:"#22314a", text:"#9aabc2"
+  };
+  const SQ2PI=Math.sqrt(2*Math.PI);
+
+  function nPdf(x,mu=0,sd=1){const z=(x-mu)/sd; return Math.exp(-.5*z*z)/(sd*SQ2PI)}
+  function nRnd(mu=0,sd=1){
+    let a=0,b=0; while(a===0)a=Math.random(); while(b===0)b=Math.random();
+    return mu+sd*Math.sqrt(-2*Math.log(a))*Math.cos(2*Math.PI*b);
+  }
+  function cPdf(x,loc=0,s=1){const z=(x-loc)/s; return 1/(Math.PI*s*(1+z*z))}
+  function cRnd(loc=0,s=1){return loc+s*Math.tan(Math.PI*(Math.random()-.5))}
+  function lPdf(x){return .5*Math.exp(-Math.abs(x))}
+  function b25(x){return x>=0&&x<=1 ? 30*x*Math.pow(1-x,4) : 0}
+  function b22(x){return x>=0&&x<=1 ? 6*x*(1-x) : 0}
+  function b22Rnd(){
+    const a=-Math.log(Math.max(Number.MIN_VALUE,Math.random()*Math.random()));
+    const b=-Math.log(Math.max(Number.MIN_VALUE,Math.random()*Math.random()));
+    return a/(a+b);
+  }
+  function mix(x){return .48*nPdf(x,-2.1,.65)+.52*nPdf(x,2,.85)}
+
+  const configs={
+    normal:{
+      name:"Normal N(0,1)", domain:[-5,5], pdf:x=>nPdf(x),
+      proposals:{
+        cauchy:{name:"Cauchy(0,1)",pdf:x=>cPdf(x),rnd:()=>cRnd(),M:Math.sqrt(2*Math.PI/Math.E)},
+        normal2:{name:"Normal N(0,2²)",pdf:x=>nPdf(x,0,2),rnd:()=>nRnd(0,2),M:2}
+      }
+    },
+    beta:{
+      name:"Beta(2,5)", domain:[0,1], pdf:b25,
+      proposals:{
+        unif:{name:"Uniforme(0,1)",pdf:x=>x>=0&&x<=1?1:0,rnd:()=>Math.random(),M:2.4576},
+        beta22:{name:"Beta(2,2)",pdf:b22,rnd:b22Rnd,M:5}
+      }
+    },
+    laplace:{
+      name:"Laplace(0,1)", domain:[-6,6], pdf:lPdf,
+      proposals:{
+        c1:{name:"Cauchy(0,1)",pdf:x=>cPdf(x),rnd:()=>cRnd(),M:Math.PI/2},
+        c2:{name:"Cauchy(0,2)",pdf:x=>cPdf(x,0,2),rnd:()=>cRnd(0,2),M:Math.PI}
+      }
+    },
+    mixture:{
+      name:"Mistura bimodal", domain:[-7,7], pdf:mix,
+      proposals:{
+        n3:{name:"Normal N(0,3²)",pdf:x=>nPdf(x,0,3),rnd:()=>nRnd(0,3),M:2.88},
+        c2:{name:"Cauchy(0,2)",pdf:x=>cPdf(x,0,2),rnd:()=>cRnd(0,2),M:4.13}
+      }
+    }
+  };
+
+  const targetSel=$("#target"), proposalSel=$("#proposal"), slack=$("#slack");
+  for(const [key,cfg] of Object.entries(configs)){
+    const o=document.createElement("option"); o.value=key; o.textContent=cfg.name; targetSel.appendChild(o);
+  }
+
+  let targetKey="normal", proposalKey="cauchy";
+  let phase=0, current=null, attempts=0, accepted=[], points=[], timer=null;
+
+  function cfg(){return configs[targetKey]}
+  function prop(){return cfg().proposals[proposalKey]}
+  function M(){return prop().M*Number(slack.value)}
+
+  function repopulateProposals(){
+    proposalSel.innerHTML="";
+    const keys=Object.keys(cfg().proposals);
+    for(const key of keys){
+      const o=document.createElement("option");
+      o.value=key; o.textContent=cfg().proposals[key].name; proposalSel.appendChild(o);
+    }
+    proposalKey=keys[0];
+    proposalSel.value=proposalKey;
+  }
+
+  function reset(){
+    stopAuto();
+    phase=0; current=null; attempts=0; accepted=[]; points=[];
+    render();
+    setStatus("Pronto. Clique em “Próximo passo”.","");
+  }
+
+  function stopAuto(){
+    if(timer!==null){clearTimeout(timer);timer=null}
+    $("#auto").textContent="▶ Automático";
+  }
+
+  function autoTick(){
+    if(timer===null)return;
+    advance();
+    const speed=Number($("#speed").value);
+    const delay=1100-speed*90;
+    timer=setTimeout(autoTick,delay);
+  }
+
+  function toggleAuto(){
+    if(timer!==null){stopAuto();return}
+    $("#auto").textContent="⏸ Pausar";
+    timer=setTimeout(autoTick,100);
+  }
+
+  function makeCandidate(){
+    const p=prop(), t=cfg();
+    let x=p.rnd();
+    let gx=p.pdf(x);
+    // proteção contra números patológicos extremamente raros
+    let guard=0;
+    while((!Number.isFinite(x)||!Number.isFinite(gx)||gx<=0) && guard<50){
+      x=p.rnd(); gx=p.pdf(x); guard++;
+    }
+    const fx=t.pdf(x);
+    return {x,gx,fx,u:null,y:null,ratio:null,ok:null};
+  }
+
+  function advance(){
+    if(phase===0 || phase===4){
+      current=makeCandidate(); phase=1;
+    }else if(phase===1){
+      current.u=Math.random(); phase=2;
+    }else if(phase===2){
+      current.y=current.u*M()*current.gx;
+      current.ratio=current.gx>0 ? current.fx/(M()*current.gx) : 0;
+      phase=3;
+    }else if(phase===3){
+      current.ok=current.y<=current.fx+1e-14;
+      attempts++;
+      points.push({x:current.x,y:current.y,ok:current.ok});
+      if(points.length>300)points.shift();
+      if(current.ok)accepted.push(current.x);
+      phase=4;
+    }
+    render();
+  }
+
+  function fullDraw(){
+    const q=makeCandidate();
+    q.u=Math.random();
+    q.y=q.u*M()*q.gx;
+    q.ratio=q.gx>0?q.fx/(M()*q.gx):0;
+    q.ok=q.y<=q.fx+1e-14;
+    attempts++;
+    points.push({x:q.x,y:q.y,ok:q.ok});
+    if(points.length>300)points.shift();
+    if(q.ok)accepted.push(q.x);
+  }
+
+  function batch(){
+    stopAuto();
+    for(let i=0;i<100;i++)fullDraw();
+    current=null; phase=0;
+    render();
+    setStatus("100 propostas geradas.","");
+  }
+
+  function fmt(x){
+    if(x===null||x===undefined||!Number.isFinite(x))return "—";
+    return Math.abs(x)>999?x.toExponential(2):x.toFixed(4);
+  }
+
+  function setStatus(text,kind){
+    const e=$("#status"); e.textContent=text; e.className="status"+(kind?" "+kind:"");
+  }
+
+  function renderSteps(){
+    for(let i=1;i<=4;i++){
+      const e=$("#step"+i); e.classList.remove("active","done");
+      if(i<phase)e.classList.add("done");
+      if(i===phase)e.classList.add("active");
+    }
+    $("#txt1").textContent=current?`X = ${fmt(current.x)}; g(X) = ${fmt(current.gx)}`:"Ainda não sorteado.";
+    $("#txt2").textContent=current&&current.u!==null?`U = ${fmt(current.u)}`:"Ainda não sorteado.";
+    $("#txt3").textContent=current&&current.y!==null?`Y = U·M·g(X) = ${fmt(current.y)}`:"Y = U · M g(X).";
+    $("#txt4").textContent=current&&current.y!==null
+      ? `f(X) = ${fmt(current.fx)}; ${current.ok===null?"a decisão vem no próximo passo":current.ok?"Y ≤ f(X): ACEITO":"Y > f(X): REJEITADO"}`
+      :"Aceitamos se Y ≤ f(X).";
+    if(current&&current.ok===true)setStatus(`Aceito: x=${fmt(current.x)} entra na amostra.`,"ok");
+    else if(current&&current.ok===false)setStatus(`Rejeitado: x=${fmt(current.x)} é descartado.`,"bad");
+    else if(current)setStatus("Candidato em construção; acompanhe as quatro etapas.","");
+  }
+
+  function renderStats(){
+    $("#nProp").textContent=attempts;
+    $("#nAcc").textContent=accepted.length;
+    $("#obs").textContent=attempts?`${(100*accepted.length/attempts).toFixed(1)}%`:"—";
+    $("#theory").textContent=`${(100/M()).toFixed(1)}%`;
+    $("#mUsed").textContent=M().toFixed(3);
+    $("#slackText").textContent=Number(slack.value).toFixed(2)+"×";
+    $("#formula").textContent=
+`Condição do envelope:
+f(x) ≤ M g(x)
+
+M mínimo desta proposta ≈ ${prop().M.toFixed(4)}
+M usado = ${M().toFixed(4)}
+
+Teste equivalente:
+U ≤ f(X)/(M g(X))
+ou
+Y = U·M·g(X) ≤ f(X)
+
+Taxa teórica ≈ 1/M = ${(100/M()).toFixed(2)}%`;
+  }
+
+  function selfTest(){
+    const [a,b]=cfg().domain;
+    let worst=0, bad=false;
+    const pad=(b-a)*1.5;
+    const lo=a-pad, hi=b+pad;
+    for(let i=0;i<=6000;i++){
+      const x=lo+(hi-lo)*i/6000;
+      const gx=prop().pdf(x), fx=cfg().pdf(x);
+      if(gx>0){const r=fx/(M()*gx); if(r>worst)worst=r; if(r>1.000001)bad=true}
+      else if(fx>1e-12)bad=true;
+    }
+    $("#selftest").textContent=bad
+      ?"⚠ Envelope inválido nesta configuração."
+      :`✓ Envelope validado numericamente (máx. f/(Mg) ≈ ${worst.toFixed(4)}).`;
+  }
+
+  function el(name,attrs={}){
+    const e=document.createElementNS("http://www.w3.org/2000/svg",name);
+    for(const [k,v] of Object.entries(attrs))e.setAttribute(k,String(v));
+    return e;
+  }
+
+  function clearSvg(svg){while(svg.firstChild)svg.removeChild(svg.firstChild)}
+
+  function drawAxes(svg,W,H,pad,xmin,xmax,ymax,yticks=4){
+    const gx=el("g");
+    for(let i=0;i<=5;i++){
+      const x=pad+(W-2*pad)*i/5;
+      gx.appendChild(el("line",{x1:x,y1:pad,x2:x,y2:H-pad,stroke:C.grid,"stroke-width":1}));
+      const t=el("text",{x:x,y:H-pad+22,fill:C.text,"font-size":12,"text-anchor":"middle"});
+      t.textContent=(xmin+(xmax-xmin)*i/5).toFixed((xmax-xmin)<=2?2:1); gx.appendChild(t);
+    }
+    for(let i=0;i<=yticks;i++){
+      const y=H-pad-(H-2*pad)*i/yticks;
+      gx.appendChild(el("line",{x1:pad,y1:y,x2:W-pad,y2:y,stroke:C.grid,"stroke-width":1}));
+      const t=el("text",{x:pad-8,y:y+4,fill:C.text,"font-size":12,"text-anchor":"end"});
+      t.textContent=(ymax*i/yticks).toFixed(2); gx.appendChild(t);
+    }
+    svg.appendChild(gx);
+  }
+
+  function curvePath(fn,xmin,xmax,ymax,W,H,pad){
+    const N=700, pts=[];
+    for(let i=0;i<=N;i++){
+      const x=xmin+(xmax-xmin)*i/N, y=Math.max(0,fn(x));
+      const px=pad+(x-xmin)/(xmax-xmin)*(W-2*pad);
+      const py=H-pad-Math.min(1,y/ymax)*(H-2*pad);
+      pts.push(`${px.toFixed(2)},${py.toFixed(2)}`);
+    }
+    return pts.join(" ");
+  }
+
+  function drawPlot(){
+    const svg=$("#plot"), W=1000,H=520,pad=62;
+    clearSvg(svg);
+    const [xmin,xmax]=cfg().domain;
+    let ymax=0;
+    for(let i=0;i<=1200;i++){
+      const x=xmin+(xmax-xmin)*i/1200;
+      ymax=Math.max(ymax,cfg().pdf(x),M()*prop().pdf(x));
+    }
+    ymax=Math.max(ymax*1.12,.01);
+    drawAxes(svg,W,H,pad,xmin,xmax,ymax);
+
+    svg.appendChild(el("polyline",{points:curvePath(x=>M()*prop().pdf(x),xmin,xmax,ymax,W,H,pad),
+      fill:"none",stroke:C.env,"stroke-width":3,"stroke-dasharray":"9 7"}));
+    svg.appendChild(el("polyline",{points:curvePath(cfg().pdf,xmin,xmax,ymax,W,H,pad),
+      fill:"none",stroke:C.target,"stroke-width":3}));
+
+    for(const q of points){
+      if(q.x<xmin||q.x>xmax)continue;
+      const px=pad+(q.x-xmin)/(xmax-xmin)*(W-2*pad);
+      const py=H-pad-Math.min(1,q.y/ymax)*(H-2*pad);
+      svg.appendChild(el("circle",{cx:px,cy:py,r:3.2,fill:q.ok?C.ok:C.bad,opacity:.55}));
+    }
+
+    if(current && current.x>=xmin && current.x<=xmax){
+      const px=pad+(current.x-xmin)/(xmax-xmin)*(W-2*pad);
+      svg.appendChild(el("line",{x1:px,y1:pad,x2:px,y2:H-pad,stroke:"#ffffff","stroke-opacity":.22,"stroke-width":1}));
+      if(current.y!==null){
+        const py=H-pad-Math.min(1,current.y/ymax)*(H-2*pad);
+        svg.appendChild(el("circle",{cx:px,cy:py,r:7,fill:current.ok===true?C.ok:current.ok===false?C.bad:C.candidate,stroke:"#fff","stroke-width":1.4}));
+        const fy=H-pad-Math.min(1,current.fx/ymax)*(H-2*pad);
+        svg.appendChild(el("line",{x1:px,y1:py,x2:px,y2:fy,stroke:C.target,"stroke-width":2,"stroke-dasharray":"5 4"}));
+      }
+    }
+  }
+
+  function drawHist(){
+    const svg=$("#hist"),W=1000,H=330,pad=55;
+    clearSvg(svg);
+    const [xmin,xmax]=cfg().domain, bins=42, counts=Array(bins).fill(0);
+    let n=0;
+    for(const x of accepted){
+      if(x<xmin||x>xmax)continue;
+      let j=Math.floor((x-xmin)/(xmax-xmin)*bins);
+      j=Math.max(0,Math.min(bins-1,j)); counts[j]++; n++;
+    }
+    const bw=(xmax-xmin)/bins;
+    let ymax=0;
+    for(let i=0;i<=800;i++)ymax=Math.max(ymax,cfg().pdf(xmin+(xmax-xmin)*i/800));
+    if(n)for(const c of counts)ymax=Math.max(ymax,c/(n*bw));
+    ymax=Math.max(.01,ymax*1.15);
+    drawAxes(svg,W,H,pad,xmin,xmax,ymax);
+
+    if(n){
+      const chartW=W-2*pad;
+      for(let j=0;j<bins;j++){
+        const dens=counts[j]/(n*bw);
+        const h=(dens/ymax)*(H-2*pad);
+        svg.appendChild(el("rect",{x:pad+j*chartW/bins,y:H-pad-h,width:chartW/bins-1,height:h,fill:"#94a3b8",opacity:.35}));
+      }
+    }
+    svg.appendChild(el("polyline",{points:curvePath(cfg().pdf,xmin,xmax,ymax,W,H,pad),fill:"none",stroke:C.target,"stroke-width":3}));
+    const t=el("text",{x:pad,y:24,fill:C.text,"font-size":13}); t.textContent=`Amostras aceitas dentro da janela: ${n}`; svg.appendChild(t);
+  }
+
+  function render(){
+    renderStats(); renderSteps(); selfTest(); drawPlot(); drawHist();
+  }
+
+  targetSel.addEventListener("change",()=>{
+    targetKey=targetSel.value; repopulateProposals(); reset();
+  });
+  proposalSel.addEventListener("change",()=>{
+    proposalKey=proposalSel.value; reset();
+  });
+  slack.addEventListener("input",reset);
+  $("#next").addEventListener("click",advance);
+  $("#auto").addEventListener("click",toggleAuto);
+  $("#batch").addEventListener("click",batch);
+  $("#reset").addEventListener("click",reset);
+
+  repopulateProposals();
+  reset();
+})();
+</script>
+</body>
+</html>
